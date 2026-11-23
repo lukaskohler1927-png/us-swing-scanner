@@ -67,9 +67,9 @@ def formatted(p, now, paper):
             f"Stop-Loss: {fmt(p['stop'])}\nTake-Profit: {fmt(p['target'])}\n"
             f"Chance/Risiko netto am ungünstigen Rand: {p['rr']:.2f}:1\n"
             f"Haltedauer: 2–5 Handelstage, frühere Ausstiege möglich\nSignal-Score: {p['score']}/100\n"
-            f"Grund: {p['reason']}\nSpread-Stichprobe vor Schluss (90. Perzentil): {p['spread']:.2%}\n"
+            f"Grund: {p['reason']}\nSpread unbekannt. Geld-/Briefkurs vor Ausführung bei IBKR prüfen.\n"
             f"Kursstand: {cl.astimezone(NY):%d.%m.%Y %H:%M %Z}, vor {age:.1f} h (Tagesdaten)\n"
-            f"Gültig bis: {expiry.astimezone(NY):%d.%m.%Y %H:%M %Z}, nur innerhalb der Zone."
+            f"Gültig bis: {expiry.astimezone(NY):%d.%m.%Y %H:%M %Z}, nur innerhalb der Zone.\nKurse: DoltHub post-no-preference/stocks (CC BY-SA 4.0)."
             + ("\nShort: Leihbarkeit und Leihsatz bei IBKR ungeprüft. Squeeze- und Gap-Risiko." if s<0 else "")
             + ("\nQuelle: "+p["event"]["url"] if p.get("event") and p["event"]["url"] else ""))
 

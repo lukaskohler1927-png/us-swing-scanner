@@ -1,16 +1,17 @@
 """Session publication, candidate ranking, historical quotes, and forward ledger."""
 from collections import Counter
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 import os
 
 import pandas as pd
 
 from .backtest import fingerprint
-from .book import advance, group, summary
+from .book import advance, group
 from .data import SourceError, universe
+from .dolt import SOURCE
 from .edgar import Edgar
 from .market import bounds, calendar, next_day, sessions
-from .strategy import HOLD, MAX_NEW, candidates, clean, event_match, features, ranked
+from .strategy import HOLD, MAX_NEW, candidates, clean, features, ranked
 from .telegram import formatted, reserve
 
 
@@ -33,8 +34,8 @@ def paper_metrics(records):
 
 def actionable(p, state, now):
     report = state.get("validation") or {}
-    if not (flag("LIVE_ALERTS") and report.get("fingerprint")==fingerprint()
-            and report.get("source")=="Alpaca SIP historical"):
+    if not (p.get("spread") is not None and flag("LIVE_ALERTS") and report.get("fingerprint")==fingerprint()
+            and report.get("source")==SOURCE):
         return False
     age = (now.date()-date.fromisoformat(report["last"])).days
     code = p["version"]
@@ -89,6 +90,7 @@ def full(reader, provider, state, day, now):
     _, close = bounds(day)
     # Date-tagged daily bars only, with a delayed historical end parameter.
     cutoff = min(now-timedelta(minutes=20),close+timedelta(hours=4))
+    provider.prepare(names,str(idx[0].date()),day)
     short_idx = idx[-23:]
     screened, track = [], {}
     fresh = 0
@@ -104,16 +106,10 @@ def full(reader, provider, state, day, now):
                 continue
             fresh += 1
             prev = df.iloc[-21:-1]
-            if current.close>=5 and len(prev.dropna())==20 and (prev.close*prev.volume).median()>=5e6:
+            if current.close>=10 and len(prev.dropna())==20 and (prev.close*prev.volume).median()>=25e6:
                 screened.append(symbol)
     if fresh < .70*len(listings):
         raise SourceError("Unter 70 % aktuelle Abdeckung. Kein neuer Scan veröffentlicht.")
-    # Read market news only once. Technical strategies are independent of news availability.
-    try:
-        news = provider.news(day)
-        news_state = "ok"
-    except (SourceError, ValueError, KeyError):
-        news, news_state = {}, "unavailable"
     sec, sec_reads = None, 0
     sec_state = "disabled"
     if os.getenv("SEC_USER_AGENT"):
@@ -138,11 +134,11 @@ def full(reader, provider, state, day, now):
             if not bool(f.ready.iloc[-1]):
                 continue
             ready += 1
-            events = {(day,s):event_match(news.get(symbol,()),s,previous_close,close) for s in (1,-1)}
+            events = {}
             last = f.iloc[-1]
             event_side = 1 if last.gap > 0 else -1
             if (sec and sec_reads < 50 and listings[symbol].asset=="Aktie" and abs(last.gap)>.018
-                and last.rv>=1.6 and not events[(day,event_side)]
+                and last.rv>=1.6
                 and event_side*(last.close-last.prev)>last.atr):
                 sec_reads += 1
                 try:
@@ -158,24 +154,17 @@ def full(reader, provider, state, day, now):
     blocked = {p["symbol"] for p in state["active"]}
     recent = set(str(t.date()) for t in idx[-(HOLD-1):])
     blocked.update(p["symbol"] for p in state["closed"] if p["day"] in recent)
-    checked, selected, etf_count = {}, [], 0
+    selected, etf_count = [], 0
     for p in ranked(proposals):
         symbol = p["symbol"]
         if symbol in blocked or (p["asset"]=="ETF" and etf_count>=1):
             continue
         if len(selected)>=min(MAX_NEW,9-len(state["active"])):
             break
-        if symbol not in checked:
-            if len(checked)>=40:
-                continue
-            checked[symbol] = provider.spread(symbol,day)
-        spread = checked[symbol]
-        if spread is None or spread>(.0015 if p["side"]==-1 else .002):
-            continue
-        p.update(name=listings[symbol].name, spread=spread, version=version,
+        p.update(name=listings[symbol].name, spread=None, version=version,
                  key=f"{day}/{symbol}/{p['side']}/{p['strategy']}")
         live = actionable(p,state,now)
-        if live or flag("PAPER_TELEGRAM"):
+        if live or os.getenv("PAPER_TELEGRAM","").lower() != "false":
             reserve(state,p["key"],formatted(p,now,not live),expires=bounds(next_day(day))[0].isoformat())
         selected.append(p)
         blocked.add(symbol)
@@ -189,23 +178,9 @@ def full(reader, provider, state, day, now):
     state["outbox"] = [m for m in state["outbox"] if m["key"][:10]>=oldest or m["kind"]=="test"][-2000:]
     return {"session":day,"directory_times":stamps,"listed":len(listings),"fresh":fresh,
             "liquid":len(screened),"with_history":deep_fresh,"technical_ready":ready,"candidate_setups":len(proposals),
-            "quotes_checked":len(checked),"selected":len(selected),"etfs_selected":etf_count,
-            "news":news_state,"edgar":sec_state,"edgar_lookups":sec_reads,"mode":"paper + eligible opt-in" if flag("LIVE_ALERTS") else "paper",
+            "quotes_checked":0,"revision":provider.ref,"price_source":SOURCE,"selected":len(selected),"etfs_selected":etf_count,
+            "news":"SEC earnings only","edgar":sec_state,"edgar_lookups":sec_reads,"mode":"paper",
             "venues":dict(Counter(x.exchange for x in listings.values())),
             "paper_active":len(state["active"]),"paper_resolved":len(state["closed"]),
             "paper_metrics_R_weighted":paper_metrics([p for p in state["closed"] if p.get("version")==version]),
             "unconfirmed_telegram":sum(m["status"] in {"uncertain","reserved"} for m in state["outbox"])}
-
-
-def opencheck(provider,state,day):
-    if state.get("opencheck")==day:
-        return None
-    plans = [p for p in state["active"] if next_day(p["day"])==day]
-    if not plans:
-        return None
-    opens = provider.opening([p["symbol"] for p in plans],day)
-    for p in plans:
-        val = opens.get(p["symbol"])
-        p["opening_check"] = "unavailable" if val is None else "in_zone" if p["lo"]<=val<=p["hi"] else "outside"
-    state["opencheck"] = day
-    return {"session":day,"opening_plans":len(plans),"observable":len(opens)}

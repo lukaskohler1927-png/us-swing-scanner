@@ -6,11 +6,11 @@ on:
         description: Aufgabe
         type: choice
         default: health
-        options: [health, pair-test, backtest, scan, opencheck]
+        options: [health, pair-test, backtest, verify, scan, catchup]
   schedule:
     - cron: '47 20 * * 1-5'
       timezone: America/New_York
-    - cron: '17 11 * * 1-5'
+    - cron: '17 7 * * 1-6'
       timezone: America/New_York
 permissions:
   contents: read
@@ -37,15 +37,12 @@ jobs:
       - name: Publish daily research or run selected task
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          ACTION: ${{ inputs.action || (github.event.schedule == '17 11 * * 1-5' && 'opencheck' || 'scan') }}
-          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
-          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          ACTION: ${{ inputs.action || (github.event.schedule == '17 7 * * 1-6' && 'catchup' || 'scan') }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_PAIR_CODE: ${{ secrets.TELEGRAM_PAIR_CODE }}
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
           STATE_KEY: ${{ secrets.STATE_KEY }}
           PAPER_TELEGRAM: ${{ vars.PAPER_TELEGRAM }}
-          LIVE_ALERTS: ${{ vars.LIVE_ALERTS }}
           INCLUDE_ETFS: ${{ vars.INCLUDE_ETFS }}
           PUBLISH_LEDGER: '1'
         run: |

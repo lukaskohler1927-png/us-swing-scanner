@@ -14,7 +14,7 @@ jobs:
   test:
     if: github.event.repository.visibility == 'public'
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,3 +24,18 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - run: python -m unittest discover -s tests -v
       - run: python -m swing.cli health
+      - name: Verify whole market without credentials or delivery
+        run: python -m swing.cli verify
+  validation:
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: ''
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Replay daily prices with an out-of-sample year
+        run: python -m swing.cli backtest

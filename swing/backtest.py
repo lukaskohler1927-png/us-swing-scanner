@@ -11,7 +11,8 @@ import zipfile
 import pandas as pd
 
 from .book import replay
-from .data import Alpaca, COLS, Reader
+from .data import COLS, Reader
+from .dolt import Dolt, SOURCE
 from .market import bounds, calendar, sessions
 from .strategy import VERSION, candidates, clean, features
 
@@ -23,7 +24,7 @@ PANEL = """AAPL ABBV ABT ACN ADBE ADI ADP AIG AMAT AMD AMGN AMZN AXP BA BAC BK B
 def fingerprint():
     root = Path(__file__).parent
     return hashlib.sha256(b"".join((root/n).read_bytes() for n in
-                   ("strategy.py","book.py","backtest.py","data.py","market.py","edgar.py","scan.py"))).hexdigest()
+                   ("strategy.py","book.py","backtest.py","data.py","dolt.py","market.py","edgar.py","scan.py"))).hexdigest()
 
 
 def study(frames, first, last, split, source, symbols_requested=None):
@@ -58,19 +59,19 @@ def archive(path):
 
 
 def vendor(now):
-    a = Alpaca(Reader())
+    a = Dolt(Reader())
     # Most recent fully settled PRIOR session; never include the current day.
     today = pd.Timestamp(now.date())
     last = calendar().date_to_session(today-pd.Timedelta(days=1),direction="previous").date().isoformat()
     end = bounds(last)[1]
     first = (pd.Timestamp(last)-pd.DateOffset(years=4)).date().isoformat()
     split = (pd.Timestamp(last)-pd.DateOffset(years=1)).date().isoformat()
-    frames = {}
-    for i in range(0,len(PANEL),8):
-        frames.update(a.bars(PANEL[i:i+8],first,end))
+    a.prepare(PANEL,first,last,panel=True)
+    frames = a.bars(PANEL,first,end)
     if len(frames) < .90*len(PANEL):
         raise ValueError("Kursabdeckung im Backtest unter 90 %")
-    report = study(frames,first,last,split,"Alpaca SIP historical",len(PANEL))
+    report = study(frames,first,last,split,SOURCE,len(PANEL))
+    report["revision"] = a.ref
     if report["valid_symbol_days"] < .85*len(PANEL)*len(sessions(first,last)):
         raise ValueError("Zu viele historische Datenlücken")
     return report

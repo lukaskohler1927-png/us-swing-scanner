@@ -1,17 +1,18 @@
-"""Entry points for GitHub Actions and isolated local replay."""
+"""Run the scheduled scan, delivery pairing and reproducible verification jobs."""
 import argparse
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import json
 import os
-from pathlib import Path
-import sys
+
+import pandas as pd
 
 from . import store
 from .backtest import fingerprint, vendor
-from .data import Alpaca, Reader, universe
-from .market import NY, run_day
-from .scan import full, opencheck
+from .data import Reader, universe, SourceError
+from .dolt import Dolt
+from .market import NY, bounds, calendar, run_day
+from .scan import full
 from .telegram import dispatch, pair, reserve
 
 
@@ -20,72 +21,83 @@ def clock():
 
 
 def publish_status(output):
-    line = json.dumps(output, ensure_ascii=False,allow_nan=False)
-    print(line,flush=True)
+    print(json.dumps(output, ensure_ascii=False, allow_nan=False), flush=True)
     if "GITHUB_STEP_SUMMARY" in os.environ:
-        with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f:
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("### US Swing Scanner\n\n```json\n"+json.dumps(output,indent=2,ensure_ascii=False)+"\n```\n")
 
 
 def run(action):
     now = clock()
     reader = Reader()
-    if action=="health":
-        names, stamps = universe(reader,now)
-        publish_status({"listings":len(names),"venues":dict(Counter(x.exchange for x in names.values())),
-                        "directory_times":stamps})
-        return
-    day = run_day(now,action) if action in {"scan","opencheck"} else None
-    if action in {"scan","opencheck"} and day is None:
-        publish_status({"status":"ausserhalb des vorgesehenen Handelsfensters","mode":action})
-        return
-    state = store.read()
-    if action=="pair-test":
+    if action == "pair-test":
+        state = store.read()
         pair(state,now)
         reserve(state,"test/"+now.date().isoformat(),
-                "Verbindungstest erfolgreich. Der Scanner ist mit diesem privaten Chat gekoppelt. Dies ist ein technischer Test.","test")
+                "Verbindungstest erfolgreich. Du erhältst hier qualifizierte Paper-Signale.", "test")
         store.save(state)
         dispatch(state,store.save,clock)
         publish_status({"status":"gekoppelt","test":state["outbox"][-1]["status"]})
         return
-    if action=="backtest":
+    if action == "health":
+        names, stamps = universe(reader,now)
+        provider = Dolt(reader)
+        provider.prepare(["AAPL"],provider.latest,provider.latest,panel=True)
+        sample = provider.frames.get("AAPL")
+        if sample is None or sample.empty or pd.isna(sample.close.iloc[-1]):
+            raise SourceError("Tageskurs-Stichprobe fehlt")
+        publish_status({"listings":len(names),"venues":dict(Counter(x.exchange for x in names.values())),
+                        "directory_times":stamps,"price_session":provider.latest,"revision":provider.ref,
+                        "sample":{"symbol":"AAPL","close":float(sample.close.iloc[-1]),"currency":"USD"}})
+        return
+    persistent = bool(os.getenv("STATE_KEY") or os.getenv("TELEGRAM_BOT_TOKEN"))
+    if action == "verify":
+        today = now.astimezone(NY).date()
+        session = calendar().date_to_session(pd.Timestamp(today),direction="previous")
+        if bounds(session)[1] > now:
+            session = calendar().previous_session(session)
+        day = session.date().isoformat()
+        publish_status(full(reader,Dolt(reader),store.blank(),day,now))
+        return
+    state = store.read() if persistent else store.blank()
+    if action == "backtest":
         report = vendor(now)
-        state["validation"] = report
-        store.save(state)
-        publish_status({"validation_source":report["source"],"last":report["last"],"oos":report["oos"]})
-        return
-    provider = Alpaca(reader)
-    if action=="opencheck":
-        report = opencheck(provider,state,day)
-        if report:
+        if persistent:
+            state["validation"] = report
             store.save(state)
-            publish_status(report)
-        return
-    old = state.get("validation") or {}
-    # Refresh on first complete scan and every 30 days, even after a missed scheduled run.
-    stale = (old.get("fingerprint")!=fingerprint() or
-             (now.date()-datetime.fromisoformat(old["last"]).date()).days>30)
-    if stale:
-        state["validation"] = vendor(now)
-        store.save(state)
-    report = full(reader,provider,state,day,now)
-    if report:
-        store.save(state,report)
         publish_status(report)
-    else:
+        return
+    day = run_day(now,action)
+    if day is None:
+        publish_status({"status":"ausserhalb des vorgesehenen Handelsfensters","mode":action})
+        return
+    if state["last_scan"] == day:
         publish_status({"session":day,"status":"bereits veröffentlicht"})
-    dispatch(state,store.save,clock)
+    else:
+        provider = Dolt(reader)
+        if provider.latest < day:
+            raise SourceError(f"Tageskurse für {day} fehlen. Letzte Sitzung der Quelle: {provider.latest}")
+        old = state.get("validation") or {}
+        if persistent and (old.get("fingerprint") != fingerprint() or
+                           (now.date()-datetime.fromisoformat(old["last"]).date()).days > 30):
+            state["validation"] = vendor(now)
+            store.save(state)
+        report = full(reader,provider,state,day,now)
+        if persistent:
+            store.save(state,report)
+        publish_status({**report,"journal_persistent":persistent,"telegram_paired":bool(state["chat"])})
+    if persistent:
+        dispatch(state,store.save,clock)
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("action",choices=["health","pair-test","backtest","opencheck","scan"])
+    p.add_argument("action",choices=["health","pair-test","backtest","verify","catchup","scan"])
     args = p.parse_args()
     try:
         run(args.action)
     except Exception as e:
-        # Do not echo provider URLs, request bodies, tokens, or chat IDs.
-        safe = (str(e) if type(e).__module__ in {"swing.data","swing.telegram"} else type(e).__name__)
+        safe = str(e) if isinstance(e,SourceError) or type(e).__module__=="swing.telegram" else type(e).__name__
         publish_status({"status":"fehlgeschlagen","action":args.action,"error":safe})
         raise SystemExit(1) from None
 

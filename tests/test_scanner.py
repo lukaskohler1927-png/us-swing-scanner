@@ -13,10 +13,11 @@ import pandas as pd
 from swing import store
 from swing.backtest import fingerprint
 from swing.book import advance, choose, group, replay
-from swing.data import Alpaca, SourceError
+from swing.data import SourceError
+from swing.dolt import Dolt, FIELDS, Incomplete, SOURCE
 from swing.edgar import Edgar
 from swing.market import Listing, NY, bounds, directory, next_day, run_day, sessions
-from swing.scan import actionable, full, opencheck
+from swing.scan import actionable, full
 from swing.strategy import STRATEGIES, candidates, clean, costs, event_match, features, proposal, triggers
 from swing.telegram import TelegramFailure, dispatch, formatted, pair, reserve
 
@@ -79,26 +80,31 @@ class Market(unittest.TestCase):
         hole=df.drop(df.index[-8])
         self.assertFalse(features(clean(hole,df.index)).ready.iloc[-1])
 
-    def test_pagination_and_bar_timezone(self):
-        reader=Mock()
-        one={"bars":{"ABC":[{"t":"2026-11-23T05:00:00Z","o":1,"h":2,"l":1,"c":1.5,"v":23}]},"next_page_token":"next"}
-        reader.get.side_effect=[json.dumps(one),json.dumps({"bars":{},"next_page_token":None})]
-        with patch.dict(os.environ,{"ALPACA_KEY_ID":"test","ALPACA_SECRET_KEY":"test"}):
-            a=Alpaca(reader)
-            self.assertEqual(str(a.bars(["ABC"],DAY,N)["ABC"].index[0].date()),DAY)
-            reader.get.side_effect=[json.dumps(one)]*2
-            with self.assertRaises(SourceError):
-                list(a.pages("/v2/stocks/bars",{}))
+    def test_anonymous_feed_split_and_asof(self):
+        provider = object.__new__(Dolt)
+        provider.latest = DAY
+        provider.ref = "a"*32
+        provider.interval = lambda start,end,tab,*args: iter([[["2026-11-20","ABC"]]] if tab=="split" else
+            [[["2026-11-19","ABC","80","81","79","80","5000"],["2026-11-20","ABC","40","41","39","40","10000"]]])
+        provider.prepare(["ABC"],"2026-11-19",DAY,panel=True)
+        bars = provider.bars(["ABC"],"2026-11-19",N)["ABC"]
+        self.assertEqual(bars.close.iloc[0],80)
+        self.assertTrue(pd.isna(bars.close.iloc[1]))
+        with self.assertRaises(SourceError):
+            provider.prepare(["ABC"],DAY,"2026-11-24")
 
-    def test_quote_filter(self):
-        a=object.__new__(Alpaca)
-        t=bounds(DAY)[1]-timedelta(seconds=15)
-        def quotes(width):
-            return {"quotes":{"T":[{"t":(t-timedelta(seconds=i)).isoformat(),"bp":100,"ap":100+width,"as":1,"bs":1} for i in range(5)]}}
-        a.pages=lambda *args:iter([quotes(.08)])
-        self.assertLess(a.spread("T",DAY),.002)
-        a.pages=lambda *args:iter([quotes(-1)])
-        self.assertIsNone(a.spread("T",DAY))
+    def test_truncated_query_rejected(self):
+        provider = object.__new__(Dolt)
+        provider.ref = "master"
+        provider.reader = Mock()
+        provider.reader.get.return_value = json.dumps({"data":{"columns":[],"rows":[],"status":"row_limit"}})
+        with self.assertRaises(Incomplete):
+            provider.query("SELECT 1",["n"])
+
+    def test_catchup_time(self):
+        self.assertEqual(run_day(N.replace(hour=7),"catchup"),"2026-11-20")
+        self.assertIsNone(run_day(N.replace(hour=10),"catchup"))
+        self.assertEqual(run_day(N.replace(day=27,hour=7),"catchup"),"2026-11-25")
 
     def test_news_and_edgar_cutoff(self):
         op,cl=bounds(DAY)
@@ -167,12 +173,13 @@ class Trading(unittest.TestCase):
         state=store.blank()
         self.assertFalse(actionable(p,state,N))
         good=dict(n=40,pf=1.3,avg_r=.2)
-        state["validation"]=dict(fingerprint=fingerprint(),source="Alpaca SIP historical",last=DAY,
+        state["validation"]=dict(fingerprint=fingerprint(),source=SOURCE,last=DAY,
                                  oos={**good,"unknown":0,"groups":{group(p):good}})
         state["days"]=[{"day":str(d.date()),"version":p["version"]} for d in INDEX[-20:]]
         state["closed"]=[dict(p,net=2 if i%2 else -1,realized_r=.8 if i%2 else -.4) for i in range(40)]
         with patch.dict(os.environ,{"LIVE_ALERTS":"true"}):
             self.assertTrue(actionable(p,state,N))
+            self.assertFalse(actionable(dict(p,spread=None),state,N))
             self.assertFalse(actionable(plan(-1),state,N))
             self.assertFalse(actionable(p,state,N+timedelta(days=50)))
 
@@ -224,8 +231,7 @@ class Pipeline(unittest.TestCase):
             head.iloc[j]=pd.Series(dict(open=z-.12,close=z,low=z-.38,high=z+.18,volume=1000000))[head.columns]
         provider=Mock()
         provider.bars.side_effect=lambda syms,first,end:{"TEST":head.loc[first:]} if syms else {}
-        provider.news.return_value={}
-        provider.spread.return_value=.0008
+        provider.ref="test-revision"
         state=store.blank()
         state["chat"]=17
         with patch("swing.scan.universe",return_value=({"TEST":Listing("TEST","Test","NASDAQ","Aktie")},{})), patch.dict(os.environ,{"PAPER_TELEGRAM":"true","LIVE_ALERTS":"false","SEC_USER_AGENT":""}):
@@ -236,10 +242,7 @@ class Pipeline(unittest.TestCase):
             self.assertIsNone(full(Mock(),provider,state,DAY,N))
             with patch("swing.telegram.api",return_value={"message_id":1}):
                 dispatch(state,lambda s:None,lambda:N)
-            provider.opening.return_value={"TEST":close*1.12}
-            data=opencheck(provider,state,next_day(DAY))
-            self.assertEqual(data["observable"],1)
-            self.assertEqual(state["active"][0]["opening_check"],"outside")
+            self.assertIn("Spread unbekannt",state["outbox"][0]["text"])
             from swing.scan import reconcile
             tomorrow=pd.Timestamp(next_day(DAY))
             head.loc[tomorrow]=pd.Series(dict(open=close*1.12,close=close*1.12,low=close*1.10,high=close*1.13,volume=1000000))[head.columns]

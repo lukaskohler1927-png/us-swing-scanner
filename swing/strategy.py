@@ -37,20 +37,28 @@ def clean(raw, index):
 def features(df):
     f = df.copy()
     c, h, l, v = f.close, f.high, f.low, f.volume
+    # Reset exponential averages after missing bars, including effective split days.
+    segments = c.isna().cumsum() if c.isna().any() else None
+
+    def ema(values, **params):
+        if segments is None:
+            return values.ewm(adjust=False, **params).mean()
+        return values.groupby(segments, sort=False).ewm(adjust=False, **params).mean().droplevel(0)
+
     prev = c.shift()
     f["prev"] = prev
     f["prev_o"] = f.open.shift()
     for length in (20, 50, 200):
-        f[f"e{length}"] = c.ewm(span=length, adjust=False, min_periods=length).mean()
+        f[f"e{length}"] = ema(c,span=length,min_periods=length)
     f["slope"] = f.e50 - f.e50.shift(5)
-    f["macd"] = c.ewm(span=12, adjust=False).mean() - c.ewm(span=26, adjust=False).mean()
-    f["hist"] = f.macd - f.macd.ewm(span=9, adjust=False).mean()
+    f["macd"] = ema(c,span=12) - ema(c,span=26)
+    f["hist"] = f.macd - ema(f.macd,span=9)
     f["last_hist"] = f["hist"].shift()
     tr = pd.concat([(h-l), (h-prev).abs(), (l-prev).abs()], axis=1).max(axis=1)
-    f["atr"] = tr.ewm(alpha=1/14, adjust=False, min_periods=14).mean()
+    f["atr"] = ema(tr,alpha=1/14,min_periods=14)
     delta = c.diff()
-    gain = delta.clip(lower=0).ewm(alpha=1/14, adjust=False, min_periods=14).mean()
-    loss = (-delta.clip(upper=0)).ewm(alpha=1/14, adjust=False, min_periods=14).mean()
+    gain = ema(delta.clip(lower=0),alpha=1/14,min_periods=14)
+    loss = ema(-delta.clip(upper=0),alpha=1/14,min_periods=14)
     f["rsi"] = (100 * gain / (gain+loss)).fillna(50)
     f["last_rsi"] = f.rsi.shift()
     for n in (3, 20, 60):
@@ -61,7 +69,7 @@ def features(df):
     f["gap"] = f.open / prev - 1
     # Avoid split-like moves and unstable symbols. A fresh 200-session window is required.
     jump = c.pct_change(fill_method=None).abs()
-    f["ready"] = ((c.rolling(200).count() == 200) & (c >= 5) & (f.dollar >= 5e6)
+    f["ready"] = ((c.rolling(200).count() == 200) & (c >= 10) & (f.dollar >= 25e6)
                   & (f.atr/c).between(.007, .075) & (jump.rolling(10).max() <= .30)
                   & (f.gap.abs() <= .18) & (f.rv >= .55))
     return f
@@ -84,7 +92,7 @@ def triggers(f, side):
         STRATEGIES[3]: turn & directional & (s*(f.close-f.prev) > 0) & (f.rv >= 1.1),
         STRATEGIES[4]: (s*f.gap > .018) & directional & (f.rv >= 1.6) & (s*(f.close-f.prev) > f.atr),
     }
-    short_ok = (f.dollar >= 15e6) & (f.rv < 6) & (f.gap.abs() < .085) & (f.atr/f.close < .055)
+    short_ok = (f.dollar >= 50e6) & (f.rv < 6) & (f.gap.abs() < .085) & (f.atr/f.close < .055)
     ready = f.ready & (short_ok if s == -1 else True)
     return {k: v & ready for k, v in masks.items()}
 

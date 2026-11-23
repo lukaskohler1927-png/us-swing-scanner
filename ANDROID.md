@@ -1,15 +1,18 @@
-# Repository über das Smartphone einrichten
+# Telegram am Android-Handy verbinden
 
-**Der kürzeste Weg mit ChatGPT.** Ein neues öffentliches Repository namens `us-swing-scanner` mit README anlegen. Öffne danach [Installierte GitHub-Apps](https://github.com/settings/installations), bei der ChatGPT-/Codex-App **Configure**, dann **Repository access → Only select repositories → us-swing-scanner → Save**. Alternativ in ChatGPT **Einstellungen → Plugins → GitHub → Repository-Zugriff verwalten** öffnen. Wenn die App dort erstmals installiert wird, **Install** wählen. Gib ChatGPT dann den Repository-Namen. [OpenAI-Anleitung](https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt)
+Kurse und Börsenlisten funktionieren sofort ohne Registrierung. Der Zeitplan ist im öffentlichen Repository eingerichtet. Für Nachrichten auf deinem Handy sind zwei persönliche Werte nötig.
 
-**Handy-Import ohne verbundene Schreibrechte.** Das Downloadpaket enthält neben dem Quellordner die Datei `Android-Start.txt`. Sie ist ein einmalig zu kopierender GitHub-Workflow mit eingebettetem, komprimiertem Quellstand. Der folgende Weg funktioniert mit GitHub im Handy-Browser. Du benötigst keinen lokalen Python-Interpreter und keinen PC.
+1. Öffne in Telegram den verifizierten [@BotFather](https://t.me/BotFather). Sende `/newbot` und folge den Fragen nach Name und Benutzername. Kopiere den Bot-Token. Wenn du bereits einen eigenen Bot hast, verwende dessen Token.
+2. Öffne die [Actions-Secrets dieses Scanners](https://github.com/lukaskohler1927-png/us-swing-scanner/settings/secrets/actions). Tippe für jede Zeile auf **New repository secret**.
 
-1. Entpacke das ZIP in der Samsung-App **Eigene Dateien**. Öffne `Android-Start.txt` mit einem Textbetrachter. Wähle **Alles auswählen → Kopieren**.
-2. Öffne dein neues, leeres öffentliches Repository mit README im GitHub-Browser. Tippe auf **Add file → Create new file**. Falls nötig, beim Browser **Desktopwebsite** einschalten.
-3. Gib als Dateinamen exakt `.github/workflows/scanner.yml` ein. Füge den kopierten Inhalt in den Editor ein. Tippe auf **Commit changes** und bestätige den Commit auf dem Standardbranch.
-4. Öffne **Actions → US Swing Scanner → Run workflow** und wähle **health**. Beim ersten Lauf ergänzt der Workflow die Python-Dateien, Tests und Auswertung und veröffentlicht sie im Repository. Der Modus prüft die echten Symbolverzeichnisse. Die Scanner-Tests laufen auch in dieser Ein-Datei-Variante bei jedem Aufruf.
-5. Folge im Repository der **README** ab dem Alpaca-Paper-Konto. Vor der Telegram-Kopplung ist keine Nachricht zu erwarten.
+   | Name | Eintrag |
+   |---|---|
+   | `TELEGRAM_BOT_TOKEN` | Token von BotFather |
+   | `TELEGRAM_PAIR_CODE` | Privater zufälliger Kopplungscode mit mindestens 16 Zeichen, ohne Leerzeichen |
 
-Falls GitHub das Schreiben mit „permission denied“ blockiert, prüfe im eigenen Repository **Settings → Actions → General** die Berechtigung für den Workflow zur Inhaltsaktualisierung und etwaige Branch-Regeln. Bei einem öffentlich gewordenen Token den Token bei BotFather widerrufen und den Ersatz direkt als GitHub Secret hinterlegen. Nutzer des optionalen separaten Journal-Schlüssels behalten diesen bei.
+3. Öffne den privaten Chat mit **deinem neuen Bot**. Sende `/start DEIN_CODE`, mit deinem tatsächlichen Kopplungscode nach dem Leerzeichen.
+4. Öffne innerhalb von 15 Minuten den [Scanner-Workflow](https://github.com/lukaskohler1927-png/us-swing-scanner/actions/workflows/scanner.yml). Tippe **Run workflow**, wähle unter **Aufgabe** den Eintrag **pair-test**, dann nochmals **Run workflow**. Der Bot sendet eine Testnachricht. Den Kopplungscode kannst du danach aus den GitHub-Secrets löschen.
 
-Zum Ausschalten genügt in GitHub **Actions → US Swing Scanner → … → Disable workflow**. Dies beendet die geplanten Läufe.
+Speichere geheime Werte ausschliesslich in GitHub Secrets und verwende den Kopplungscode nur im privaten Bot-Chat. Der Token verschlüsselt standardmässig auch das Journal. Bei einer Tokenrotation setze **vorher** den alten Wert als Secret `STATE_KEY`, damit das Journal lesbar bleibt. Alternativ kannst du vor der ersten Kopplung einen stabilen, separaten Schlüssel mit mindestens 32 zufälligen Zeichen als `STATE_KEY` setzen. Ein bestehendes Journal benötigt seinen ursprünglich verwendeten Schlüssel.
+
+Nach der Kopplung kommen qualifizierte Paper-Signale automatisch. Ein leerer Tag bleibt still. Mit der Repository-Variable `PAPER_TELEGRAM=false` pausierst du die Paper-Signale. Tagesberichte stehen im Actions-Tab. Zum Anhalten des Zeitplans verwende dort **US Swing Scanner → … → Disable workflow**.

@@ -17,9 +17,9 @@ def blank():
 
 
 def cipher():
-    value = os.getenv("STATE_KEY") or os.getenv("ALPACA_SECRET_KEY") or ""
+    value = os.getenv("STATE_KEY") or os.getenv("TELEGRAM_BOT_TOKEN") or ""
     if len(value) < 24:
-        raise ValueError("STATE_KEY oder Alpaca-Secret benötigt mindestens 24 Zeichen")
+        raise ValueError("STATE_KEY oder Telegram-Token benötigt mindestens 24 Zeichen")
     digest = hashlib.sha256(("swing-ledger-v1/" + value).encode()).digest()
     return Fernet(base64.urlsafe_b64encode(digest))
 
