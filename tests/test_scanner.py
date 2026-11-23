@@ -187,6 +187,23 @@ class Trading(unittest.TestCase):
         self.assertTrue(res["max_drawdown"]>0)
         self.assertEqual(len(choose([plan(),plan(-1)])),1)
 
+    def test_twenty_signals_per_session_with_separate_portfolio_budget(self):
+        dates = INDEX[-10:]
+        bars = pd.DataFrame(dict(open=100.,low=99.,high=101.,close=100.),index=dates)
+        rows, frames = {}, {}
+        for day_number, d in enumerate(dates[:2]):
+            day = str(d.date())
+            rows[day] = []
+            for rank in range(25):
+                symbol = f"X{day_number}{rank:02}"
+                frames[symbol] = bars
+                rows[day].append(plan(1 if rank%2==0 else -1,symbol=symbol,day=day,score=99-rank))
+        result = replay(dates,rows,frames)
+        self.assertEqual(result["signals"],40)
+        self.assertEqual(result["signal_fills"],40)
+        self.assertEqual(result["n"],9)
+        self.assertEqual(result["unfunded_fills"],31)
+
     def test_gate(self):
         p=plan()
         state=store.blank()
@@ -290,6 +307,31 @@ class Pipeline(unittest.TestCase):
             reconcile(state,{"TEST":head},str(tomorrow.date()),fingerprint())
             self.assertEqual(state["closed"][0]["status"],"EXPIRED")
             self.assertEqual(state["outbox"][-1]["kind"],"invalidation")
+
+    def test_twenty_ranked_distinct_telegram_signals_with_nine_open(self):
+        symbols = [f"X{i:02}" for i in range(35)]
+        listings = {s:Listing(s,s,"NASDAQ","Aktie") for s in symbols}
+        bars = pd.DataFrame(dict(open=100.,high=101.,low=99.,close=100.,volume=1000000),index=INDEX)
+        provider = Mock()
+        provider.bars.side_effect = lambda batch,first,end: {s:bars.loc[first:] for s in batch}
+        provider.ref = provider.base_revision = "test"
+        state = store.blank()
+        state["chat"] = 17
+        state["active"] = [plan(symbol=s,day=str(INDEX[-2].date())) for s in symbols[:9]]
+
+        def proposals(symbol,*args):
+            i = symbols.index(symbol)
+            side = 1 if i%2 else -1
+            return [plan(side,symbol=symbol,score=100-i),plan(-side,symbol=symbol,score=50-i)]
+
+        with patch("swing.scan.universe",return_value=(listings,{})), \
+                patch("swing.scan.candidates",side_effect=proposals), \
+                patch.dict(os.environ,{"SEC_USER_AGENT":"","PAPER_TELEGRAM":"true"}):
+            report = full(Mock(),provider,state,DAY,N)
+        self.assertEqual((report["selected"],report["selected_long"],report["selected_short"]),(20,10,10))
+        self.assertEqual([p["symbol"] for p in state["active"]],symbols[:29])
+        self.assertEqual(len({m["key"] for m in state["outbox"]}),20)
+        self.assertIsNone(full(Mock(),provider,state,DAY,N))
 
     def test_missing_coverage_blocks_publication(self):
         provider=Mock()

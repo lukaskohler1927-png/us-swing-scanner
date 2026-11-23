@@ -6,12 +6,12 @@ import os
 import pandas as pd
 
 from .backtest import fingerprint
-from .book import advance, group
+from .book import advance, choose, group
 from .data import SourceError, universe
 from .dolt import SOURCE
 from .edgar import Edgar
 from .market import bounds, calendar, next_day, sessions
-from .strategy import HOLD, MAX_NEW, candidates, clean, features, ranked
+from .strategy import HOLD, MAX_NEW, candidates, clean, features
 from .telegram import formatted, reserve
 
 
@@ -154,21 +154,14 @@ def full(reader, provider, state, day, now):
     blocked = {p["symbol"] for p in state["active"]}
     recent = set(str(t.date()) for t in idx[-(HOLD-1):])
     blocked.update(p["symbol"] for p in state["closed"] if p["day"] in recent)
-    selected, etf_count = [], 0
-    for p in ranked(proposals):
+    selected = choose(proposals,blocked)
+    for p in selected:
         symbol = p["symbol"]
-        if symbol in blocked or (p["asset"]=="ETF" and etf_count>=1):
-            continue
-        if len(selected)>=min(MAX_NEW,9-len(state["active"])):
-            break
         p.update(name=listings[symbol].name, spread=None, version=version,
                  key=f"{day}/{symbol}/{p['side']}/{p['strategy']}")
         live = actionable(p,state,now)
         if live or os.getenv("PAPER_TELEGRAM","").lower() != "false":
             reserve(state,p["key"],formatted(p,now,not live),expires=bounds(next_day(day))[0].isoformat())
-        selected.append(p)
-        blocked.add(symbol)
-        etf_count += p["asset"]=="ETF"
     state["active"].extend(selected)
     state["days"].append({"day":day,"version":version})
     state["days"] = state["days"][-260:]
@@ -178,7 +171,9 @@ def full(reader, provider, state, day, now):
     state["outbox"] = [m for m in state["outbox"] if m["key"][:10]>=oldest or m["kind"]=="test"][-2000:]
     return {"session":day,"directory_times":stamps,"listed":len(listings),"fresh":fresh,
             "liquid":len(screened),"with_history":deep_fresh,"technical_ready":ready,"candidate_setups":len(proposals),
-            "quotes_checked":0,"revision":provider.ref,"history_revision":provider.base_revision,"price_source":SOURCE,"selected":len(selected),"etfs_selected":etf_count,
+            "quotes_checked":0,"revision":provider.ref,"history_revision":provider.base_revision,"price_source":SOURCE,"selected":len(selected),
+            "daily_limit":MAX_NEW,"selected_long":sum(p["side"]==1 for p in selected),
+            "selected_short":sum(p["side"]==-1 for p in selected),"etfs_selected":sum(p["asset"]=="ETF" for p in selected),
             "news":"SEC earnings only","edgar":sec_state,"edgar_lookups":sec_reads,"mode":"paper",
             "venues":dict(Counter(x.exchange for x in listings.values())),
             "paper_active":len(state["active"]),"paper_resolved":len(state["closed"]),

@@ -6,16 +6,20 @@ import math
 from .strategy import BORROW, ENTRY_BPS, FEE, HOLD, MAX_NEW, ranked
 
 
+PORTFOLIO_SLOTS = 9
+
 def choose(plans, occupied=(), recent=(), limit=MAX_NEW):
     blocked = set(occupied) | set(recent)
     selected = []
+    has_etf = False
     for p in ranked(plans):
-        if p["symbol"] in blocked:
+        if len(selected) >= limit:
+            break
+        if p["symbol"] in blocked or (has_etf and p["asset"] == "ETF"):
             continue
         blocked.add(p["symbol"])
         selected.append(p)
-        if len(selected) == limit:
-            break
+        has_etf |= p["asset"] == "ETF"
     return selected
 
 
@@ -55,7 +59,7 @@ def advance(position, day, bar):
 
 
 def summary(trades):
-    closed = [p for p in trades if "net" in p]
+    closed = [p for p in trades if "net" in p and p.get("qty",1)>0]
     if not closed:
         return dict(n=0, win=None, pf=None, avg_rr=None, avg_r=None, profit=0., loss=0.)
     pnls = [p["net"]*p.get("qty", 1) for p in closed]
@@ -80,13 +84,19 @@ def replay(index, proposals, by_symbol):
             active[p["symbol"]] = p
         pending = []
         equity_before = equity + sum(p.get("qty",0)*p["side"]*(p.get("last",0)-p.get("fill",0)) for p in active.values())
+        # Funding is decided at the open, before this session's exits are known.
+        slots = PORTFOLIO_SLOTS - sum(p.get("qty",0)>0 for p in active.values())
         for symbol, p in list(active.items()):
             frame = by_symbol[symbol]
             bar = frame.loc[d] if d in frame.index else None
             outcome = advance(p, day, bar)
             if "fill" in p and "qty" not in p:
-                p["qty"] = math.floor(max(0,min(.10*equity_before/p["fill"],
-                                         .005*equity_before/abs(p["fill"]-p["stop"]))))
+                p["qty"] = 0
+                if slots > 0:
+                    p["qty"] = math.floor(max(0,min(.10*equity_before/p["fill"],
+                                             .005*equity_before/abs(p["fill"]-p["stop"]))))
+                    if p["qty"] > 0:
+                        slots -= 1
             if outcome:
                 p.update(outcome)
                 if "net" in p:
@@ -101,17 +111,17 @@ def replay(index, proposals, by_symbol):
         dd = max(dd, 1-mark/peak)
         # Purge tail decisions so that no pending entry or exit crosses the partition.
         if i + HOLD < len(days):
-            room = min(MAX_NEW, 9-len(active))
-            if room > 0:
-                pending = [dict(p) for p in choose(proposals.get(day, ()), active,
-                           [k for k,v in last_signal.items() if i-v < HOLD], room)]
-                for p in pending:
-                    last_signal[p["symbol"]] = i
+            recent = [k for k,v in last_signal.items() if i-v < HOLD]
+            pending = [dict(p) for p in choose(proposals.get(day, ()),active,recent)]
+            for p in pending:
+                last_signal[p["symbol"]] = i
     out = summary(records)
     groups = defaultdict(list)
     for p in records:
         groups[group(p)].append(p)
     out.update(max_drawdown=dd, equity_end=equity, signals=len(records),
+               signal_fills=sum("net" in p for p in records),
+               unfunded_fills=sum("net" in p and p.get("qty",0)==0 for p in records),
                expired=sum(p["status"]=="EXPIRED" for p in records),
                unknown=sum(p["status"]=="UNKNOWN" for p in records),
                groups={k: summary(v) for k,v in sorted(groups.items())})

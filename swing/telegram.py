@@ -3,6 +3,7 @@ import hmac
 import json
 import os
 import re
+import time
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -81,15 +82,20 @@ def reserve(state, key, message, kind="signal", expires=None):
 
 def dispatch(state, persist, now):
     failed = 0
+    next_send = 0.0
     for m in state["outbox"]:
         if m["status"] != "queued":
             continue
+        wait = next_send - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
         if m.get("expires") and datetime.fromisoformat(m["expires"]) <= now():
             m["status"] = "expired"
             persist(state)
             continue
         m["status"] = "reserved"
         persist(state)
+        next_send = time.monotonic() + 1.1
         try:
             api("sendMessage",{"chat_id":state["chat"],"text":m["text"],
                                "link_preview_options":{"is_disabled":True}})

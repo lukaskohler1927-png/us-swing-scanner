@@ -14,7 +14,7 @@ SIDE = {1: "LONG", -1: "SHORT"}
 ENTRY_BPS = .0010  # one-way execution friction, per dollar
 FEE = .0005         # $1 on $2,000 per side, modelling assumption
 BORROW = .10        # annualised stress assumption, not an IBKR quote
-MAX_NEW = 3
+MAX_NEW = 20
 HOLD = 5
 
 
