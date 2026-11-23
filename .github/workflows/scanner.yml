@@ -3,10 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: Aufgabe
+        description: Aufgabe (jetzt-scannen sendet gültige Treffer an Telegram)
         type: choice
-        default: health
-        options: [health, pair-test, backtest, verify, scan, catchup]
+        default: jetzt-scannen
+        options: [jetzt-scannen, health, pair-test, backtest, verify, scan, catchup]
   schedule:
     - cron: '47 20 * * 1-5'
       timezone: America/New_York

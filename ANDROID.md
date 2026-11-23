@@ -16,3 +16,5 @@ Kurse und Börsenlisten funktionieren sofort ohne Registrierung. Der Zeitplan is
 Speichere geheime Werte ausschliesslich in GitHub Secrets und verwende den Kopplungscode nur im privaten Bot-Chat. Der Token verschlüsselt standardmässig auch das Journal. Bei einer Tokenrotation setze **vorher** den alten Wert als Secret `STATE_KEY`, damit das Journal lesbar bleibt. Alternativ kannst du vor der ersten Kopplung einen stabilen, separaten Schlüssel mit mindestens 32 zufälligen Zeichen als `STATE_KEY` setzen. Ein bestehendes Journal benötigt seinen ursprünglich verwendeten Schlüssel.
 
 Nach der Kopplung kommen qualifizierte Paper-Signale automatisch. Ein leerer Tag bleibt still. Mit der Repository-Variable `PAPER_TELEGRAM=false` pausierst du die Paper-Signale. Tagesberichte stehen im Actions-Tab. Zum Anhalten des Zeitplans verwende dort **US Swing Scanner → … → Disable workflow**.
+
+Für einen manuellen Scan mit Versand tippe im [Scanner-Workflow](https://github.com/lukaskohler1927-png/us-swing-scanner/actions/workflows/scanner.yml) auf **Run workflow → jetzt-scannen → Run workflow**.

@@ -80,8 +80,17 @@ def reconcile(state, frames, day, version):
     state["active"]=living
 
 
+def needs_scan(state, day, now):
+    last = state["last_scan"]
+    if not last or last < day:
+        return True
+    # Old journals used a three-signal cap and had no limit field.
+    return (last == day and state.get("last_scan_limit",3) < MAX_NEW
+            and now < bounds(next_day(day))[0])
+
+
 def full(reader, provider, state, day, now):
-    if state["last_scan"] == day:
+    if not needs_scan(state,day,now):
         return None
     listings, stamps = universe(reader,now,flag("INCLUDE_ETFS"))
     active = {p["symbol"] for p in state["active"]}
@@ -154,7 +163,10 @@ def full(reader, provider, state, day, now):
     blocked = {p["symbol"] for p in state["active"]}
     recent = set(str(t.date()) for t in idx[-(HOLD-1):])
     blocked.update(p["symbol"] for p in state["closed"] if p["day"] in recent)
-    selected = choose(proposals,blocked)
+    previous = [p for p in state["active"] + state["closed"] if p["day"] == day]
+    if any(p["asset"] == "ETF" for p in previous):
+        proposals = [p for p in proposals if p["asset"] != "ETF"]
+    selected = choose(proposals,blocked,limit=max(0,MAX_NEW-len(previous)))
     for p in selected:
         symbol = p["symbol"]
         p.update(name=listings[symbol].name, spread=None, version=version,
@@ -163,7 +175,10 @@ def full(reader, provider, state, day, now):
         if live or os.getenv("PAPER_TELEGRAM","").lower() != "false":
             reserve(state,p["key"],formatted(p,now,not live),expires=bounds(next_day(day))[0].isoformat())
     state["active"].extend(selected)
-    state["days"].append({"day":day,"version":version})
+    if state["last_scan"] != day:
+        state["days"].append({"day":day,"version":version})
+    state["last_scan_limit"] = MAX_NEW
+    daily = previous + selected
     state["days"] = state["days"][-260:]
     state["last_scan"] = day
     oldest = (date.fromisoformat(day)-timedelta(days=400)).isoformat()
@@ -171,9 +186,9 @@ def full(reader, provider, state, day, now):
     state["outbox"] = [m for m in state["outbox"] if m["key"][:10]>=oldest or m["kind"]=="test"][-2000:]
     return {"session":day,"directory_times":stamps,"listed":len(listings),"fresh":fresh,
             "liquid":len(screened),"with_history":deep_fresh,"technical_ready":ready,"candidate_setups":len(proposals),
-            "quotes_checked":0,"revision":provider.ref,"history_revision":provider.base_revision,"price_source":SOURCE,"selected":len(selected),
-            "daily_limit":MAX_NEW,"selected_long":sum(p["side"]==1 for p in selected),
-            "selected_short":sum(p["side"]==-1 for p in selected),"etfs_selected":sum(p["asset"]=="ETF" for p in selected),
+            "quotes_checked":0,"revision":provider.ref,"history_revision":provider.base_revision,"price_source":SOURCE,"selected":len(daily),"new_this_run":len(selected),
+            "daily_limit":MAX_NEW,"selected_long":sum(p["side"]==1 for p in daily),
+            "selected_short":sum(p["side"]==-1 for p in daily),"etfs_selected":sum(p["asset"]=="ETF" for p in daily),
             "news":"SEC earnings only","edgar":sec_state,"edgar_lookups":sec_reads,"mode":"paper",
             "venues":dict(Counter(x.exchange for x in listings.values())),
             "paper_active":len(state["active"]),"paper_resolved":len(state["closed"]),

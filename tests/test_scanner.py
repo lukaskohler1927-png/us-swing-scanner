@@ -17,7 +17,7 @@ from swing.data import SourceError
 from swing.dolt import Dolt, FIELDS, Incomplete, SOURCE
 from swing.edgar import Edgar
 from swing.market import Listing, NY, bounds, directory, next_day, run_day, sessions
-from swing.scan import actionable, full
+from swing.scan import actionable, full, needs_scan
 from swing.strategy import STRATEGIES, candidates, clean, costs, event_match, features, proposal, triggers
 from swing.telegram import TelegramFailure, dispatch, formatted, pair, reserve
 
@@ -124,6 +124,13 @@ class Market(unittest.TestCase):
         self.assertEqual(run_day(N.replace(hour=7),"catchup"),"2026-11-20")
         self.assertIsNone(run_day(N.replace(hour=10),"catchup"))
         self.assertEqual(run_day(N.replace(day=27,hour=7),"catchup"),"2026-11-25")
+
+    def test_single_scan_button_uses_valid_entry_window(self):
+        self.assertEqual(run_day(N.replace(hour=8),"jetzt-scannen"),"2026-11-20")
+        self.assertIsNone(run_day(N.replace(hour=9,minute=30),"jetzt-scannen"))
+        self.assertIsNone(run_day(N.replace(hour=16,minute=20),"jetzt-scannen"))
+        self.assertEqual(run_day(N.replace(hour=16,minute=45),"jetzt-scannen"),DAY)
+        self.assertEqual(run_day(N.replace(day=22,hour=14),"jetzt-scannen"),"2026-11-20")
 
     def test_news_and_edgar_cutoff(self):
         op,cl=bounds(DAY)
@@ -331,6 +338,26 @@ class Pipeline(unittest.TestCase):
         self.assertEqual((report["selected"],report["selected_long"],report["selected_short"]),(20,10,10))
         self.assertEqual([p["symbol"] for p in state["active"]],symbols[:29])
         self.assertEqual(len({m["key"] for m in state["outbox"]}),20)
+        self.assertIsNone(full(Mock(),provider,state,DAY,N))
+
+    def test_higher_cap_only_adds_unsent_symbols_before_next_open(self):
+        state = store.blank()
+        state.update(last_scan=DAY,chat=17,active=[plan(symbol=s) for s in ("A","B","C")],
+                     days=[{"day":DAY,"version":"old"}])
+        self.assertFalse(needs_scan(state,DAY,bounds(next_day(DAY))[0]))
+        names = list("ABCDEFGHIJKLMNOPQRSTUVW")
+        listings = {s:Listing(s,s,"NASDAQ","Aktie") for s in names}
+        bars = pd.DataFrame(dict(open=100.,high=101.,low=99.,close=100.,volume=1000000),index=INDEX)
+        provider = Mock()
+        provider.ref = provider.base_revision = "test"
+        provider.bars.side_effect = lambda batch,first,end: {s:bars.loc[first:] for s in batch}
+        with patch("swing.scan.universe",return_value=(listings,{})), \
+                patch("swing.scan.candidates",side_effect=lambda s,*a:[plan(symbol=s)]):
+            report = full(Mock(),provider,state,DAY,N)
+        self.assertEqual((report["new_this_run"],report["selected"]),(17,20))
+        self.assertEqual(len(state["outbox"]),17)
+        self.assertFalse(any(m["key"].split("/")[1] in ("A","B","C") for m in state["outbox"]))
+        self.assertEqual(len(state["days"]),1)
         self.assertIsNone(full(Mock(),provider,state,DAY,N))
 
     def test_missing_coverage_blocks_publication(self):

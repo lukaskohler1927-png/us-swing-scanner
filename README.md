@@ -38,10 +38,15 @@ Das Modell rechnet pro Transaktionsseite mit 10 Basispunkten Ausführungsreibung
 
 Das frühere Archivexperiment mit anderen Filtern auf 505 Aktien steht in [research/historical.json](research/historical.json). Mit der aktuellen Quelle werden nur **Paper-Signale** verschickt, da beobachtete Spreads fehlen. Der Score beschreibt die Erfüllung der Kriterien. Aus dem Score folgt keine Gewinnwahrscheinlichkeit.
 
+## Scan am Handy starten
+
+Öffne den [Scanner-Workflow](https://github.com/lukaskohler1927-png/us-swing-scanner/actions/workflows/scanner.yml) und tippe **Run workflow → jetzt-scannen → Run workflow**. Die Aufgabe ist vorausgewählt. Sie prüft die jüngste abgeschlossene Sitzung, sobald Schlussdaten vorliegen und ein Einstieg zur nächsten Eröffnung noch möglich ist. Bereits versandte Ideen werden nicht doppelt gemeldet. Wurde die Tagesgrenze erhöht, kann derselbe Lauf bis zur Eröffnung weitere qualifizierte Titel ergänzen.
+
 ## Manuelle Aufgaben im Actions-Tab
 
 | Aufgabe | Ergebnis |
 |---|---|
+| `jetzt-scannen` | Scan mit Versand neuer gültiger Paper-Signale in deinen gekoppelten Telegram-Chat |
 | `health` | Echte Börsenverzeichnisse und eine Kursstichprobe |
 | `verify` | Vollständiger Scan der letzten abgeschlossenen Sitzung, ohne Versand oder Journaländerung |
 | `backtest` | Vierjähriger Rücktest mit separatem OOS-Bericht |

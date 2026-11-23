@@ -36,6 +36,11 @@ def run_day(now, mode):
     """Old schedules must never issue a plan retroactively."""
     local = now.astimezone(NY)
     day = local.date().isoformat()
+    if mode == "jetzt-scannen":
+        latest = calendar().date_to_session(pd.Timestamp(day),direction="previous")
+        if now < bounds(latest)[1]+timedelta(minutes=45):
+            latest = calendar().previous_session(latest)
+        return latest.date().isoformat() if now < bounds(next_day(latest))[0] else None
     if mode == "catchup":
         if (local.hour,local.minute) >= (9,30):
             return None

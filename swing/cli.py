@@ -12,7 +12,7 @@ from .backtest import fingerprint, vendor
 from .data import Reader, universe, SourceError
 from .dolt import Dolt
 from .market import NY, bounds, calendar, run_day
-from .scan import full
+from .scan import full, needs_scan
 from .telegram import dispatch, pair, reserve
 
 
@@ -73,10 +73,10 @@ def run(action):
         return
     day = run_day(now,action)
     if day is None:
-        publish_status({"status":"ausserhalb des vorgesehenen Handelsfensters","mode":action})
+        publish_status({"status":"Kein gültiges Einstiegsfenster. Neue Tagesideen sind ab 45 Minuten nach US-Schluss bis zur nächsten regulären Eröffnung möglich.","mode":action})
         return
-    if state["last_scan"] == day:
-        publish_status({"session":day,"status":"bereits veröffentlicht"})
+    if not needs_scan(state,day,now):
+        publish_status({"session":day,"status":"Für diese Sitzung bereits gescannt. Bestehende Ideen werden nur einmal gesendet."})
     else:
         provider = Dolt(reader)
         if provider.latest < day:
@@ -92,11 +92,13 @@ def run(action):
         publish_status({**report,"journal_persistent":persistent,"telegram_paired":bool(state["chat"])})
     if persistent:
         dispatch(state,store.save,clock)
+        signals = [m for m in state["outbox"] if m["kind"]=="signal" and m["key"].startswith(day+"/")]
+        publish_status({"session":day,"telegram_signals":dict(Counter(m["status"] for m in signals))})
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("action",choices=["health","pair-test","backtest","verify","catchup","scan"])
+    p.add_argument("action",choices=["jetzt-scannen","health","pair-test","backtest","verify","catchup","scan"])
     args = p.parse_args()
     try:
         run(args.action)
