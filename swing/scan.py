@@ -178,7 +178,7 @@ def full(reader, provider, state, day, now):
     state["outbox"] = [m for m in state["outbox"] if m["key"][:10]>=oldest or m["kind"]=="test"][-2000:]
     return {"session":day,"directory_times":stamps,"listed":len(listings),"fresh":fresh,
             "liquid":len(screened),"with_history":deep_fresh,"technical_ready":ready,"candidate_setups":len(proposals),
-            "quotes_checked":0,"revision":provider.ref,"price_source":SOURCE,"selected":len(selected),"etfs_selected":etf_count,
+            "quotes_checked":0,"revision":provider.ref,"history_revision":provider.base_revision,"price_source":SOURCE,"selected":len(selected),"etfs_selected":etf_count,
             "news":"SEC earnings only","edgar":sec_state,"edgar_lookups":sec_reads,"mode":"paper",
             "venues":dict(Counter(x.exchange for x in listings.values())),
             "paper_active":len(state["active"]),"paper_resolved":len(state["closed"]),

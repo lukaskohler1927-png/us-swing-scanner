@@ -11,20 +11,20 @@ import zipfile
 import pandas as pd
 
 from .book import replay
+from .history import PANEL
 from .data import COLS, Reader
 from .dolt import Dolt, SOURCE
 from .market import bounds, calendar, sessions
 from .strategy import VERSION, candidates, clean, features
 
 ARCHIVE_URL = "https://www.kaggle.com/api/v1/datasets/download/camnugent/sandp500"
-# Frozen convenience panel for vendor validation, independent of the scan universe.
-PANEL = """AAPL ABBV ABT ACN ADBE ADI ADP AIG AMAT AMD AMGN AMZN AXP BA BAC BK BLK BMY BSX C CAT CL CMCSA COP COST CRM CSCO CVS CVX DE DHR DIS DUK EMR F FDX GD GE GILD GM GOOGL GS HD HON IBM INTC JNJ JPM KO LLY LMT LOW MA MCD MDT MET MMM MO MRK MS MSFT NEE NKE NVDA ORCL PEP PFE PG QCOM RTX SBUX SO T TGT TMO TXN UNH UNP UPS USB V VZ WFC WMT XOM""".split()
+
 
 
 def fingerprint():
     root = Path(__file__).parent
     return hashlib.sha256(b"".join((root/n).read_bytes() for n in
-                   ("strategy.py","book.py","backtest.py","data.py","dolt.py","market.py","edgar.py","scan.py"))).hexdigest()
+                   ("strategy.py","book.py","backtest.py","data.py","dolt.py","history.py","market.py","edgar.py","scan.py"))).hexdigest()
 
 
 def study(frames, first, last, split, source, symbols_requested=None):
@@ -72,6 +72,7 @@ def vendor(now):
         raise ValueError("Kursabdeckung im Backtest unter 90 %")
     report = study(frames,first,last,split,SOURCE,len(PANEL))
     report["revision"] = a.ref
+    report["history_revision"] = a.base_revision
     if report["valid_symbol_days"] < .85*len(PANEL)*len(sessions(first,last)):
         raise ValueError("Zu viele historische Datenlücken")
     return report

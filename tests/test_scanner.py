@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pandas as pd
 
-from swing import store
+from swing import history, store
 from swing.backtest import fingerprint
 from swing.book import advance, choose, group, replay
 from swing.data import SourceError
@@ -100,6 +100,25 @@ class Market(unittest.TestCase):
         provider.reader.get.return_value = json.dumps({"data":{"columns":[],"rows":[],"status":"row_limit"}})
         with self.assertRaises(Incomplete):
             provider.query("SELECT 1",["n"])
+
+    def test_bulk_integrity_and_weekly_cache(self):
+        import gzip
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            raw, compact=root/"raw",root/"compact.gz"
+            header=",".join(FIELDS)+"\n"
+            row=DAY+",ABC,10,11,9,10,1000\n"
+            raw.write_text(header+"2021-01-04,ABC,2,3,1,2,1000\n"+row*1001)
+            history.compact(raw,compact,DAY,1001)
+            self.assertEqual(len(gzip.decompress(compact.read_bytes()).splitlines()),1002)
+            with self.assertRaises(SourceError):
+                history.compact(raw,compact,DAY,1100)
+            provider=Mock(latest=DAY,ref="v1")
+            with patch.object(history,"ROOT",root):
+                compact.rename(root/"prices.csv.gz")
+                (root/"snapshot.json").write_text(json.dumps({"day":DAY,"revision":"v1"}))
+                self.assertEqual(history.baseline(provider)[1]["day"],DAY)
+                provider.query.assert_not_called()
 
     def test_catchup_time(self):
         self.assertEqual(run_day(N.replace(hour=7),"catchup"),"2026-11-20")
@@ -231,7 +250,7 @@ class Pipeline(unittest.TestCase):
             head.iloc[j]=pd.Series(dict(open=z-.12,close=z,low=z-.38,high=z+.18,volume=1000000))[head.columns]
         provider=Mock()
         provider.bars.side_effect=lambda syms,first,end:{"TEST":head.loc[first:]} if syms else {}
-        provider.ref="test-revision"
+        provider.ref=provider.base_revision="test-revision"
         state=store.blank()
         state["chat"]=17
         with patch("swing.scan.universe",return_value=({"TEST":Listing("TEST","Test","NASDAQ","Aktie")},{})), patch.dict(os.environ,{"PAPER_TELEGRAM":"true","LIVE_ALERTS":"false","SEC_USER_AGENT":""}):
