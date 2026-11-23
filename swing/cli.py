@@ -33,11 +33,15 @@ def run(action):
     if action == "pair-test":
         state = store.read()
         pair(state,now)
-        reserve(state,"test/"+now.date().isoformat(),
+        run_id = os.getenv("GITHUB_RUN_ID") or now.isoformat()
+        attempt = os.getenv("GITHUB_RUN_ATTEMPT","1")
+        key = f"test/{run_id}/{attempt}"
+        reserve(state,key,
                 "Verbindungstest erfolgreich. Du erhältst hier qualifizierte Paper-Signale.", "test")
         store.save(state)
         dispatch(state,store.save,clock)
-        publish_status({"status":"gekoppelt","test":state["outbox"][-1]["status"]})
+        test = next(m for m in state["outbox"] if m["key"] == key)
+        publish_status({"status":"gekoppelt","test":test["status"]})
         return
     if action == "health":
         names, stamps = universe(reader,now)

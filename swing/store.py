@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import time
 
 from cryptography.fernet import Fernet
 
@@ -51,5 +52,13 @@ def save(data, status=None):
             files.append(str(ROOT / "status.json"))
         subprocess.run(["git","add","-f","--",*files],check=True)
         subprocess.run(["git","commit","-qm","Publish scanner research checkpoint"],check=True)
-        # An optimistic non-force push is required before any notification can proceed.
-        subprocess.run(["git","push","--quiet","origin","HEAD:refs/heads/"+os.environ["DEFAULT_BRANCH"]],check=True)
+        # A transient rejection can follow a successful checkpoint on the same ref.
+        # Retry the same commit without force; concurrent divergent history stays protected.
+        target = "HEAD:refs/heads/"+os.environ["DEFAULT_BRANCH"]
+        for wait in (0,2,5,10):
+            if wait:
+                time.sleep(wait)
+            pushed = subprocess.run(["git","push","--quiet","origin",target],check=False)
+            if pushed.returncode == 0:
+                return
+        raise RuntimeError("Journal konnte nicht auf GitHub gespeichert werden")

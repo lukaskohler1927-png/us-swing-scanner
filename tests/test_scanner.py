@@ -204,6 +204,16 @@ class Trading(unittest.TestCase):
 
 
 class Pipeline(unittest.TestCase):
+    def test_transient_checkpoint_rejection(self):
+        env={"STATE_KEY":"x"*32,"PUBLISH_LEDGER":"1","DEFAULT_BRANCH":"main"}
+        with tempfile.TemporaryDirectory() as d, patch.object(store,"ROOT",Path(d)), patch.dict(os.environ,env), \
+                patch("swing.store.time.sleep") as sleep, patch("swing.store.subprocess.run") as git:
+            git.side_effect=[Mock(returncode=0),Mock(returncode=0),Mock(returncode=1),Mock(returncode=0)]
+            store.save(store.blank())
+            self.assertEqual(git.call_args_list[-1],git.call_args_list[-2])
+            self.assertNotIn("--force",git.call_args.args[0])
+            sleep.assert_called_once_with(2)
+
     def test_encrypted_restart_and_uncertain_delivery(self):
         with tempfile.TemporaryDirectory() as d, patch.object(store,"ROOT",Path(d)), patch.dict(os.environ,{"STATE_KEY":"x"*40,"PUBLISH_LEDGER":"0"}):
             state = store.blank()
@@ -218,6 +228,18 @@ class Pipeline(unittest.TestCase):
                 self.assertEqual(send.call_count,1)
             self.assertNotIn(b"Private Testnachricht",(Path(d)/"ledger.enc").read_bytes())
             self.assertEqual(state["outbox"][0]["status"],"uncertain")
+
+    def test_repeat_manual_pair_test(self):
+        from swing.cli import run
+        state=store.blank()
+        state["chat"]=17
+        with patch("swing.cli.store.read",return_value=state), patch("swing.cli.store.save"), \
+                patch("swing.cli.publish_status"), patch("swing.telegram.api",return_value={"message_id":1}) as send:
+            for run_id, attempt in [("101","1"),("101","1"),("101","2"),("102","1")]:
+                with patch.dict(os.environ,{"GITHUB_RUN_ID":run_id,"GITHUB_RUN_ATTEMPT":attempt}):
+                    run("pair-test")
+            self.assertEqual(send.call_count,3)
+            self.assertEqual(len(state["outbox"]),3)
 
     def test_pair_and_expired_send(self):
         secret="p"*24

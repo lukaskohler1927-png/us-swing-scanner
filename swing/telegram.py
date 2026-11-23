@@ -38,7 +38,7 @@ def pair(state, now):
         return
     code = os.getenv("TELEGRAM_PAIR_CODE","")
     if len(code)<16:
-        raise ValueError("Privater Kopplungscode benötigt mindestens 16 Zeichen")
+        raise TelegramFailure("Privater Kopplungscode benötigt mindestens 16 Zeichen")
     chats = set()
     for upd in api("getUpdates",{"limit":100,"timeout":0,"allowed_updates":["message"]}):
         msg = upd.get("message",{})
@@ -49,7 +49,7 @@ def pair(state, now):
         if 0 <= age <= 900 and hmac.compare_digest(msg.get("text","").strip().encode(),("/start "+code).encode()):
             chats.add(chat["id"])
     if len(chats) != 1:
-        raise ValueError("Genau ein passender privater /start-Code innerhalb von 15 Minuten erforderlich")
+        raise TelegramFailure("Genau ein passender privater /start-Code innerhalb von 15 Minuten erforderlich")
     state["chat"] = chats.pop()
 
 
