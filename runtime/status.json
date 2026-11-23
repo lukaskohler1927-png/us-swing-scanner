@@ -1,10 +1,10 @@
 {
   "session": "2026-11-20",
   "directory_times": {
-    "nasdaqlisted": "2026-11-23T07:00:00-05:00",
-    "otherlisted": "2026-11-23T07:00:00-05:00"
+    "nasdaqlisted": "2026-11-23T08:31:00-05:00",
+    "otherlisted": "2026-11-23T08:31:00-05:00"
   },
-  "listed": 5138,
+  "listed": 5139,
   "fresh": 5072,
   "liquid": 1669,
   "with_history": 1669,
@@ -14,18 +14,22 @@
   "revision": "093tu4527bclpgc2dljdulrueht76vha",
   "history_revision": "093tu4527bclpgc2dljdulrueht76vha",
   "price_source": "DoltHub post-no-preference/stocks",
-  "selected": 3,
+  "selected": 10,
+  "new_this_run": 7,
+  "daily_limit": 20,
+  "selected_long": 5,
+  "selected_short": 5,
   "etfs_selected": 0,
   "news": "SEC earnings only",
   "edgar": "disabled",
   "edgar_lookups": 0,
   "mode": "paper",
   "venues": {
-    "NASDAQ": 2895,
+    "NASDAQ": 2896,
     "NYSE": 1986,
     "NYSE American": 257
   },
-  "paper_active": 3,
+  "paper_active": 10,
   "paper_resolved": 0,
   "paper_metrics_R_weighted": {
     "n": 0,
