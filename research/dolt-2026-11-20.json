@@ -1,0 +1,221 @@
+{
+  "workflow": "https://github.com/lukaskohler1927-png/us-swing-scanner/actions/runs/45176683871",
+  "scan": {
+    "session": "2026-11-20",
+    "directory_times": {
+      "nasdaqlisted": "2026-11-23T07:00:00-05:00",
+      "otherlisted": "2026-11-23T07:00:00-05:00"
+    },
+    "listed": 5138,
+    "fresh": 5072,
+    "liquid": 1669,
+    "with_history": 1669,
+    "technical_ready": 1390,
+    "candidate_setups": 11,
+    "quotes_checked": 0,
+    "revision": "093tu4527bclpgc2dljdulrueht76vha",
+    "history_revision": "093tu4527bclpgc2dljdulrueht76vha",
+    "price_source": "DoltHub post-no-preference/stocks",
+    "selected": 3,
+    "etfs_selected": 0,
+    "news": "SEC earnings only",
+    "edgar": "disabled",
+    "edgar_lookups": 0,
+    "mode": "paper",
+    "venues": {
+      "NASDAQ": 2895,
+      "NYSE": 1986,
+      "NYSE American": 257
+    },
+    "paper_active": 3,
+    "paper_resolved": 0,
+    "paper_metrics_R_weighted": {
+      "n": 0,
+      "pf": null,
+      "win": null,
+      "avg_r": null
+    },
+    "unconfirmed_telegram": 0
+  },
+  "backtest": {
+    "engine": "2026-11-swing-1",
+    "fingerprint": "9c37ee22c5ed474931e4c5c781bde9cc35904e62e2673b6e792050d7c1a8d174",
+    "source": "DoltHub post-no-preference/stocks",
+    "generated": "2026-11-23T12:51:43.136275+00:00",
+    "first": "2022-11-21",
+    "last": "2026-11-20",
+    "split": "2025-11-20",
+    "symbols": 85,
+    "requested": 85,
+    "valid_symbol_days": 85210,
+    "in_sample": {
+      "n": 217,
+      "win": 0.4147465437788018,
+      "pf": 0.7239,
+      "avg_rr": 2.641391705069124,
+      "avg_r": -0.14590946407151179,
+      "profit": 22154.20720736301,
+      "loss": 30602.60894405205,
+      "max_drawdown": 0.08536620317473687,
+      "equity_end": 91551.59826331098,
+      "signals": 594,
+      "expired": 377,
+      "unknown": 0,
+      "groups": {
+        "Aktie|EMA Pullback|-1": {
+          "n": 12,
+          "win": 0.25,
+          "pf": 0.3457,
+          "avg_rr": 2.506,
+          "avg_r": -0.4429752270181057,
+          "profit": 788.5904490410948,
+          "loss": 2281.212159931505
+        },
+        "Aktie|EMA Pullback|1": {
+          "n": 15,
+          "win": 0.4,
+          "pf": 0.3602,
+          "avg_rr": 2.2918,
+          "avg_r": -0.39985274771618656,
+          "profit": 745.5431025000001,
+          "loss": 2069.55352
+        },
+        "Aktie|Momentum Breakout|-1": {
+          "n": 8,
+          "win": 0.25,
+          "pf": 0.3803,
+          "avg_rr": 2.4999999999999996,
+          "avg_r": -0.19026001812807025,
+          "profit": 451.80102568493015,
+          "loss": 1187.9115256164368
+        },
+        "Aktie|Momentum Breakout|1": {
+          "n": 17,
+          "win": 0.4117647058823529,
+          "pf": 0.2134,
+          "avg_rr": 2.3111176470588237,
+          "avg_r": -0.3568028307894771,
+          "profit": 593.436655000002,
+          "loss": 2781.3775799999985
+        },
+        "Aktie|RSI Reversal|-1": {
+          "n": 87,
+          "win": 0.40229885057471265,
+          "pf": 0.8274,
+          "avg_rr": 2.610103448275863,
+          "avg_r": -0.11603364078295493,
+          "profit": 10162.215325958905,
+          "loss": 12282.314641004115
+        },
+        "Aktie|RSI Reversal|1": {
+          "n": 75,
+          "win": 0.4666666666666667,
+          "pf": 0.8962,
+          "avg_rr": 2.8675733333333344,
+          "avg_r": -0.05187328231118562,
+          "profit": 8758.485159999998,
+          "loss": 9772.5054375
+        },
+        "Aktie|Trend Following|-1": {
+          "n": 1,
+          "win": 1,
+          "pf": null,
+          "avg_rr": 2.274,
+          "avg_r": 0.9272750837925824,
+          "profit": 332.4867591780826,
+          "loss": 0
+        },
+        "Aktie|Trend Following|1": {
+          "n": 2,
+          "win": 0.5,
+          "pf": 1.4124,
+          "avg_rr": 2.5115,
+          "avg_r": 0.14850817127554372,
+          "profit": 321.64872999999903,
+          "loss": 227.73407999999984
+        }
+      }
+    },
+    "oos": {
+      "n": 84,
+      "win": 0.35714285714285715,
+      "pf": 0.7174,
+      "avg_rr": 2.750166666666667,
+      "avg_r": -0.1366754208432978,
+      "profit": 9282.00536513699,
+      "loss": 12937.535294479454,
+      "max_drawdown": 0.047368014923012125,
+      "equity_end": 96344.47007065747,
+      "signals": 286,
+      "expired": 202,
+      "unknown": 0,
+      "groups": {
+        "Aktie|EMA Pullback|-1": {
+          "n": 3,
+          "win": 1,
+          "pf": null,
+          "avg_rr": 2.2680000000000002,
+          "avg_r": 0.9175357253359163,
+          "profit": 861.1972084246569,
+          "loss": 0
+        },
+        "Aktie|EMA Pullback|1": {
+          "n": 15,
+          "win": 0.3333333333333333,
+          "pf": 0.9259,
+          "avg_rr": 2.5771999999999995,
+          "avg_r": -0.19211900775680632,
+          "profit": 2120.9405250000004,
+          "loss": 2290.677245000001
+        },
+        "Aktie|Momentum Breakout|-1": {
+          "n": 3,
+          "win": 0.3333333333333333,
+          "pf": 0.1965,
+          "avg_rr": 2.268666666666667,
+          "avg_r": -0.35272045137442154,
+          "profit": 121.17582876712282,
+          "loss": 616.7532509863003
+        },
+        "Aktie|Momentum Breakout|1": {
+          "n": 2,
+          "win": 0,
+          "pf": 0,
+          "avg_rr": 2.505,
+          "avg_r": -0.5143416158194719,
+          "profit": 0,
+          "loss": 331.7693824999997
+        },
+        "Aktie|RSI Reversal|-1": {
+          "n": 23,
+          "win": 0.2608695652173913,
+          "pf": 0.3076,
+          "avg_rr": 2.5134347826086954,
+          "avg_r": -0.36598073920176316,
+          "profit": 1401.0528491095897,
+          "loss": 4555.3205834931505
+        },
+        "Aktie|RSI Reversal|1": {
+          "n": 37,
+          "win": 0.3783783783783784,
+          "pf": 0.9085,
+          "avg_rr": 3.071054054054054,
+          "avg_r": -0.028291343683945758,
+          "profit": 4672.244430000002,
+          "loss": 5143.014832500004
+        },
+        "Aktie|Trend Following|-1": {
+          "n": 1,
+          "win": 1,
+          "pf": null,
+          "avg_rr": 2.298,
+          "avg_r": 0.19962389321608134,
+          "profit": 105.39452383561633,
+          "loss": 0
+        }
+      }
+    },
+    "revision": "093tu4527bclpgc2dljdulrueht76vha",
+    "history_revision": "093tu4527bclpgc2dljdulrueht76vha"
+  }
+}
