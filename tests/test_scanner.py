@@ -360,6 +360,35 @@ class Pipeline(unittest.TestCase):
         self.assertEqual(len(state["days"]),1)
         self.assertIsNone(full(Mock(),provider,state,DAY,N))
 
+    def test_waiting_for_prices_keeps_session_open_for_retry(self):
+        from swing import cli
+        from swing.market import NY
+        state = store.blank()
+        state["last_scan"] = "2026-11-20"
+        now = datetime(2026,11,24,0,47,tzinfo=NY)
+        provider = Mock(latest="2026-11-20")
+        env = {"STATE_KEY":"x"*32,"PRICE_RETRY_PLANNED":"true"}
+        with patch.dict(os.environ,env), patch.object(cli,"clock",return_value=now), \
+                patch.object(cli.store,"read",return_value=state), patch.object(cli.store,"save") as save, \
+                patch.object(cli,"Dolt",return_value=provider), patch.object(cli,"full") as scan, \
+                patch.object(cli,"dispatch") as send, patch.object(cli,"publish_status") as status:
+            cli.run("jetzt-scannen")
+            self.assertEqual(status.call_args.args[0]["erwartete_sitzung"],"2026-11-23")
+            self.assertEqual(status.call_args.args[0]["letzte_quellsitzung"],"2026-11-20")
+            self.assertEqual(state["last_scan"],"2026-11-20")
+            scan.assert_not_called()
+            send.assert_not_called()
+            save.assert_not_called()
+            with patch.dict(os.environ,{"PRICE_RETRY_PLANNED":"false"}):
+                with self.assertRaises(SourceError):
+                    cli.run("jetzt-scannen")
+            provider.latest = "2026-11-23"
+            state["validation"] = {"last":"2026-11-20","fingerprint":fingerprint()}
+            scan.return_value = {"session":"2026-11-23","selected":0}
+            cli.run("jetzt-scannen")
+            self.assertEqual(scan.call_args.args[-2],"2026-11-23")
+            send.assert_called_once()
+
     def test_missing_coverage_blocks_publication(self):
         provider=Mock()
         provider.bars.return_value={}

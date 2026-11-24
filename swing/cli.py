@@ -80,6 +80,12 @@ def run(action):
     else:
         provider = Dolt(reader)
         if provider.latest < day:
+            # Further scheduled attempts will recheck the source before the next open.
+            # Keep this session unprocessed so a later run can publish its actual bars.
+            if os.getenv("PRICE_RETRY_PLANNED", "").lower() == "true":
+                publish_status({"status":"Wartet auf Schlusskurse. Weiterer automatischer Versuch geplant.",
+                                "erwartete_sitzung":day,"letzte_quellsitzung":provider.latest})
+                return
             raise SourceError(f"Tageskurse für {day} fehlen. Letzte Sitzung der Quelle: {provider.latest}")
         old = state.get("validation") or {}
         if persistent and (old.get("fingerprint") != fingerprint() or
