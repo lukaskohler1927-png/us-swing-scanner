@@ -8,13 +8,12 @@ on:
         default: jetzt-scannen
         options: [jetzt-scannen, health, pair-test, backtest, verify, scan, catchup]
   schedule:
-    - cron: '47 20 * * 1-5'
-      timezone: America/New_York
-    # The publisher's recent daily OHLCV updates arrived around 05:30 UTC.
-    - cron: '47 5,7,9 * * 2-6'
+    # 01:47, 07:47, 13:47 and 19:47 in Manila/Cebu, year-round.
+    - cron: '47 5,17,23 * * *'
       timezone: Etc/UTC
-    - cron: '17 7 * * 1-6'
-      timezone: America/New_York
+    # The last slot before the regular US open reports missing prices as an error.
+    - cron: '47 11 * * *'
+      timezone: Etc/UTC
 permissions:
   contents: read
 concurrency:
@@ -49,7 +48,7 @@ jobs:
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           ACTION: ${{ inputs.action || 'jetzt-scannen' }}
-          PRICE_RETRY_PLANNED: ${{ github.event_name == 'schedule' && github.event.schedule != '17 7 * * 1-6' }}
+          PRICE_RETRY_PLANNED: ${{ github.event_name == 'schedule' && github.event.schedule != '47 11 * * *' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_PAIR_CODE: ${{ secrets.TELEGRAM_PAIR_CODE }}
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
