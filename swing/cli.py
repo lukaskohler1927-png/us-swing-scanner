@@ -94,12 +94,22 @@ def run(action):
             store.save(state)
         report = full(reader,provider,state,day,now)
         if persistent:
+            if report["new_this_run"] == 0 and os.getenv("PAPER_TELEGRAM","").lower() != "false":
+                session_label = datetime.fromisoformat(day).strftime("%d.%m.%Y")
+                reserve(state,day+"/no-signals",
+                        f"✅ Trade-Scan ausgeführt. Keine neuen gültigen Positionen gefunden.\nUS-Handelstag: {session_label}",
+                        kind="no-signals")
             store.save(state,report)
         publish_status({**report,"journal_persistent":persistent,"telegram_paired":bool(state["chat"])})
     if persistent:
         dispatch(state,store.save,clock)
         signals = [m for m in state["outbox"] if m["kind"]=="signal" and m["key"].startswith(day+"/")]
-        publish_status({"session":day,"telegram_signals":dict(Counter(m["status"] for m in signals))})
+        delivery = {"session":day,"telegram_signals":dict(Counter(m["status"] for m in signals))}
+        for message in state["outbox"]:
+            if message["key"] == day+"/no-signals":
+                delivery["telegram_no_signals"] = message["status"]
+                break
+        publish_status(delivery)
 
 
 def main():

@@ -1,6 +1,6 @@
 # US Swing Scanner
 
-Der Scanner prüft US-Aktien nach Börsenschluss auf Long- und Short-Setups für zwei bis fünf Handelstage. Die Kurse sind kostenlos und ohne Anmeldung zugänglich. Nach der privaten Kopplung sendet Telegram bis zu 20 berechnete Paper-Signale für unterschiedliche Titel pro Handelstag. Long und Short teilen sich die 20 Plätze, die besten Setups stehen zuerst. Bei weniger Treffern gibt es entsprechend weniger Meldungen. Die Ausführung von Trades bleibt bei dir.
+Der Scanner prüft US-Aktien nach Börsenschluss auf Long- und Short-Setups für zwei bis fünf Handelstage. Die Kurse sind kostenlos und ohne Anmeldung zugänglich. Nach der privaten Kopplung sendet Telegram bis zu 20 berechnete Paper-Signale für unterschiedliche Titel pro Handelstag. Long und Short teilen sich die 20 Plätze, die besten Setups stehen zuerst. Bei einem vollständig durchgeführten Scan ohne neue Treffer bestätigt Telegram den Abschluss einmal pro US-Handelstag. Übersprungene oder wegen fehlender Kursdaten abgebrochene Läufe erzeugen keine solche Meldung. Die Ausführung von Trades bleibt bei dir.
 
 **Am Handy starten:** [Telegram in vier Schritten verbinden](ANDROID.md) · [Aktuellen Betriebsstatus ansehen](https://github.com/lukaskohler1927-png/us-swing-scanner/actions)
 
@@ -36,7 +36,7 @@ Der Modus **backtest** prüft ein festes Panel liquider US-Aktien über vier Jah
 
 Das Modell rechnet pro Transaktionsseite mit 10 Basispunkten Ausführungsreibung und 5 Basispunkten Gebühren. Für Shorts kommen modellierte 10 % jährliche Leihkosten hinzu. Der Rücktest verfolgt dieselben bis zu 20 neuen Ideen pro Sitzung. Das Modellportfolio finanziert höchstens neun gleichzeitig offene Positionen, mit maximal 10 % des Modellkapitals und 0,5 % geplantem Stoprisiko pro Position. Weitere passende Ideen bleiben für Telegram zugelassen. Im Rücktest zählt `signal_fills` alle simulierten Einstiege und `unfunded_fills` jene ohne Modellkapital. Die Portfolio-Kennzahlen beziehen sich auf finanzierte Positionen. Dividenden, Steuern, echte Leihsätze, Brokergebühren und historische Spreads sind nicht vollständig abgebildet. Das feste Panel enthält Survivorship Bias. Historisch korrigierte Daten sind kein vollständiges zeitpunktgetreues Archiv. Nachrichten und ETFs sind nicht historisch validiert.
 
-Das frühere Archivexperiment mit anderen Filtern auf 505 Aktien steht in [research/historical.json](research/historical.json). Mit der aktuellen Quelle werden nur **Paper-Signale** verschickt, da beobachtete Spreads fehlen. Der Score beschreibt die Erfüllung der Kriterien. Aus dem Score folgt keine Gewinnwahrscheinlichkeit.
+Das frühere Archivexperiment mit anderen Filtern auf 505 Aktien steht in [research/historical.json](research/historical.json). Mit der aktuellen Quelle werden Handelssignale als **Paper-Signale** verschickt, da beobachtete Spreads fehlen. Der Score beschreibt die Erfüllung der Kriterien. Aus dem Score folgt keine Gewinnwahrscheinlichkeit.
 
 ## Scan am Handy starten
 

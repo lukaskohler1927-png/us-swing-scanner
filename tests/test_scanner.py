@@ -360,6 +360,29 @@ class Pipeline(unittest.TestCase):
         self.assertEqual(len(state["days"]),1)
         self.assertIsNone(full(Mock(),provider,state,DAY,N))
 
+    def test_no_signals_receipt_only_for_completed_empty_scan(self):
+        from swing import cli
+        for new, enabled, expect in [(0,"true",1),(3,"true",0),(0,"false",0)]:
+            with self.subTest(new=new,enabled=enabled):
+                state = store.blank()
+                state.update(chat=17,validation={"last":DAY,"fingerprint":fingerprint()})
+                report = {"session":DAY,"selected":new,"new_this_run":new}
+                with patch.dict(os.environ,{"STATE_KEY":"x"*32,"PAPER_TELEGRAM":enabled}), \
+                        patch.object(cli,"clock",return_value=N), patch.object(cli.store,"read",return_value=state), \
+                        patch.object(cli.store,"save") as save, patch.object(cli,"Dolt",return_value=Mock(latest=DAY)), \
+                        patch.object(cli,"needs_scan",side_effect=[True,False]), patch.object(cli,"full",return_value=report), \
+                        patch.object(cli,"publish_status"), patch("swing.telegram.api",return_value={"message_id":1}) as api:
+                    cli.run("jetzt-scannen")
+                    cli.run("jetzt-scannen")
+                    self.assertEqual(api.call_count,expect)
+                    self.assertEqual(len(state["outbox"]),expect)
+                    if expect:
+                        msg = state["outbox"][0]
+                        self.assertEqual((msg["key"],msg["kind"],msg["status"]),(DAY+"/no-signals","no-signals","sent"))
+                        self.assertIn("Keine neuen gültigen Positionen gefunden.",msg["text"])
+                        self.assertIn("23.11.2026",msg["text"])
+                        save.assert_any_call(state,report)
+
     def test_waiting_for_prices_keeps_session_open_for_retry(self):
         from swing import cli
         from swing.market import NY
@@ -384,7 +407,7 @@ class Pipeline(unittest.TestCase):
                     cli.run("jetzt-scannen")
             provider.latest = "2026-11-23"
             state["validation"] = {"last":"2026-11-20","fingerprint":fingerprint()}
-            scan.return_value = {"session":"2026-11-23","selected":0}
+            scan.return_value = {"session":"2026-11-23","selected":0,"new_this_run":0}
             cli.run("jetzt-scannen")
             self.assertEqual(scan.call_args.args[-2],"2026-11-23")
             send.assert_called_once()
