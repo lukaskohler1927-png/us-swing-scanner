@@ -1,41 +1,41 @@
 {
-  "session": "2026-11-24",
+  "session": "2026-11-25",
   "directory_times": {
-    "nasdaqlisted": "2026-11-24T21:32:00-05:00",
-    "otherlisted": "2026-11-24T21:32:00-05:00"
+    "nasdaqlisted": "2026-11-25T21:32:00-05:00",
+    "otherlisted": "2026-11-25T21:32:00-05:00"
   },
-  "listed": 5135,
-  "fresh": 5066,
-  "liquid": 1679,
-  "with_history": 1679,
-  "technical_ready": 1382,
-  "candidate_setups": 17,
+  "listed": 5132,
+  "fresh": 5058,
+  "liquid": 1681,
+  "with_history": 1681,
+  "technical_ready": 1395,
+  "candidate_setups": 22,
   "quotes_checked": 0,
-  "revision": "0l01s49k39ib2qgn6kffqbhrk8r6t4it",
+  "revision": "qf4ucseoil06ff5tuor58q90k1adr2q1",
   "history_revision": "093tu4527bclpgc2dljdulrueht76vha",
   "price_source": "DoltHub post-no-preference/stocks",
-  "selected": 17,
-  "new_this_run": 17,
+  "selected": 20,
+  "new_this_run": 20,
   "daily_limit": 20,
-  "selected_long": 14,
-  "selected_short": 3,
+  "selected_long": 12,
+  "selected_short": 8,
   "etfs_selected": 0,
   "news": "SEC earnings only",
   "edgar": "disabled",
   "edgar_lookups": 0,
   "mode": "paper",
   "venues": {
-    "NASDAQ": 2891,
+    "NASDAQ": 2888,
     "NYSE": 1987,
     "NYSE American": 257
   },
-  "paper_active": 22,
-  "paper_resolved": 25,
+  "paper_active": 29,
+  "paper_resolved": 38,
   "paper_metrics_R_weighted": {
-    "n": 0,
-    "pf": null,
-    "win": null,
-    "avg_r": null
+    "n": 1,
+    "pf": 0.0,
+    "win": 0.0,
+    "avg_r": -1.0
   },
   "unconfirmed_telegram": 0
 }
